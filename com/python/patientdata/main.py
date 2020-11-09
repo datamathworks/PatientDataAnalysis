@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, expr
 from pyspark.sql.types import DoubleType
 
 import re
@@ -43,9 +43,16 @@ if __name__ == '__main__':
 
     clean_udf = udf(clean_data, DoubleType())
 
-    clean_df = df.withColumn("glucose_mg/dl_t1_cleansed", clean_udf("glucose_mg/dl_t1")) \
-                 .withColumn("glucose_mg/dl_t2_cleansed", clean_udf("glucose_mg/dl_t2")) \
-                 .withColumn("glucose_mg/dl_t3_cleansed", clean_udf("glucose_mg/dl_t3"))
+    clean_df = df.withColumn("dl_t1_cleansed", clean_udf("glucose_mg/dl_t1")) \
+                 .withColumn("dl_t2_cleansed", clean_udf("glucose_mg/dl_t2")) \
+                 .withColumn("dl_t3_cleansed", clean_udf("glucose_mg/dl_t3"))
 
-    print(clean_df.collect())
+    cols_list = ["dl_t1_cleansed", "dl_t2_cleansed", "dl_t3_cleansed"]
+    expression = '+'.join(cols_list)
+
+    avg_df = clean_df.withColumn("Average", expr(expression) / 3)
+
+    avg_df.printSchema()
+
+    print(avg_df.collect())
 
