@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, expr
-from pyspark.sql.types import DoubleType
+from pyspark.sql.types import DoubleType, StringType
 
 import re
 
@@ -24,6 +24,19 @@ def clean_data(data):
         return float(data)
     else:
         return 0.0
+
+
+def diabetes_indicator(glucose):
+    if glucose < 140:
+        return "normal"
+    elif 140 <= glucose <= 199:
+        return "prediabetes"
+    else:
+        return "diabetes"
+
+
+def mask_data(data):
+    return "******"
 
 
 if __name__ == '__main__':
@@ -54,5 +67,19 @@ if __name__ == '__main__':
 
     avg_df.printSchema()
 
-    print(avg_df.collect())
+    spark.udf.register("diabetesIndicator", diabetes_indicator)
 
+    diabetes_ind_udf = udf(diabetes_indicator, StringType())
+
+    diabetes_indicator_df = avg_df.withColumn("diabetes_indicator", diabetes_ind_udf("Average"))
+
+    spark.udf.register("maskData", mask_data)
+
+    masked_data_udf = udf(mask_data, StringType())
+
+    masked_df = diabetes_indicator_df.withColumn("Address", masked_data_udf("Address")) \
+                                     .withColumn("lastName", masked_data_udf("lastName"))
+
+    print(masked_df.collect())
+
+    masked_df.write.mode('overwrite').parquet("output/patient_data.parquet")
